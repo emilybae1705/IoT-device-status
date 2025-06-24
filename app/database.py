@@ -1,7 +1,9 @@
 from sqlmodel import SQLModel, create_engine, Session
+from dotenv import load_dotenv
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./status.db")
 engine = create_engine(DATABASE_URL)
 
 def get_session():
