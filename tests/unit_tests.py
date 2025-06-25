@@ -7,7 +7,6 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models import DeviceStatus, DeviceStatusInput, DeviceStatusUpdate
 
-
 class DeviceStatusValidation(unittest.TestCase):
     """tests core input validation logic"""
 
