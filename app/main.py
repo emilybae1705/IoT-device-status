@@ -1,7 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from sqlmodel import Session, select, func
-from models import DeviceStatus, DeviceStatusInput, DeviceStatusUpdate, SummaryItem
-from database import get_session, create_DB
+from app.models import DeviceStatus, DeviceStatusInput, DeviceStatusUpdate, SummaryItem
+from app.database import get_session, create_DB
 from contextlib import asynccontextmanager
 import uvicorn
 
