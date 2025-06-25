@@ -2,7 +2,40 @@
 
 A FastAPI-based REST API with SQLite database for managing IoT device status updates.
 
+## Tech Stack
+
+- FastAPI
+- SQLModel
+- SQLite
+- pytest
+- Uvicorn
+
+## Project Structure
+
+```
+IoT-device-status/
+├── app/
+│   ├── main.py          # FastAPI application and routes
+│   ├── models.py        # SQLModel schema definitions
+│   └── database.py      # Database configuration and session management
+├── tests/
+│   ├── test_api.py      # Integration tests (API endpoints)
+│   └── unit_tests.py    # Unit tests (model validation)
+├── requirements.txt
+└── README.md
+```
+
+## Design Decisions
+
+1. **SQLModel**: Combines SQLAlchemy + Pydantic for clean, type-safe models
+2. **SQLite**: Leverages in-memory database for testing
+3. **Latest Status Logic**: Uses `ORDER BY timestamp DESC` for most recent status retrieval
+4. **pytest**: testing framework with better fixtures and assertions
+5. **FastAPI**: Automatic API documentation, validation, and async support
+
 ## API Endpoints
+
+All endpoints require API key authentication via the `x-api-key` header.
 
 - `POST /status/` - Create a new device status
 - `GET /status/` - Get all device statuses
@@ -44,6 +77,7 @@ The server will start on `http://127.0.0.1:8000`
 ```bash
 curl -X POST "http://127.0.0.1:8000/status/" \
   -H "Content-Type: application/json" \
+  -H "x-api-key: api-key-here" \
   -d '{
     "device_id": "sensor-abc-123",
     "timestamp": "2025-06-09T14:00:00Z",
@@ -56,13 +90,15 @@ curl -X POST "http://127.0.0.1:8000/status/" \
 ### Getting Latest Status
 
 ```bash
-curl -X GET "http://127.0.0.1:8000/status/sensor-abc-123"
+curl -X GET "http://127.0.0.1:8000/status/sensor-abc-123" \
+  -H "x-api-key: api-key-here"
 ```
 
 ### Getting Summary
 
 ```bash
-curl -X GET "http://127.0.0.1:8000/status/summary/"
+curl -X GET "http://127.0.0.1:8000/status/summary/" \
+  -H "x-api-key: api-key-here"
 ```
 
 ## Testing
@@ -70,22 +106,22 @@ curl -X GET "http://127.0.0.1:8000/status/summary/"
 ### Running Tests
 
 ```bash
-# Run integration tests
-python tests/test_api.py
-
-# Run unit tests
-python tests/unit_tests.py
+in the root IoT-device-status directory:
 
 # Run all tests
-python -m unittest discover tests/ -v
+pytest tests/*
 
+# Run only unit tests
+pytest tests/unit_tests.py
+
+# Run only integration tests
+pytest tests/test_api.py
 ```
 
 ### Test Coverage
 
-The test suite includes:
-- **Unit Tests**: Model validation and making sure devices are stored correctly in the database
-- **Integration Tests**: API endpoint testing with in-memory database
+- **Unit Tests**: Model validation, field validation, edge cases
+- **Integration Tests**: API endpoints, database operations, error handling
 
 ## CI/CD Integration
 
@@ -94,21 +130,21 @@ The test suite includes:
 Create `.github/workflows/ci.yml`:
 
 ```yaml
-  name: Test
-  on: [push, pull_request]
-  jobs:
-    test:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v2
-        - name: Set up Python
-          uses: actions/setup-python@v2
-          with:
-            python-version: 3.9
-        - name: Install dependencies
-          run: pip install fastapi uvicorn sqlmodel httpx
-        - name: Run tests
-          run: python -m unittest discover tests/ -v
+name: Test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run tests
+        run: pytest tests/*
 ```
 
 ### Docker Integration
@@ -128,7 +164,7 @@ COPY tests/ ./tests/
 
 EXPOSE 8000
 
-CMD ["python", "app/main.py"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 Create `docker-compose.yml`:
@@ -148,32 +184,21 @@ services:
 
   test:
     build: .
-    command: python tests/test_api.py
+    command: pytest tests/test_api.py
     environment:
-      - TEST_DATABASE_URL=sqlite:///:memory:
+      - TEST_DATABASE_URL=sqlite://
 ```
 
-## Development
+## API Documentation
 
-### Project Structure
+Once the server is running, visit:
+- **Interactive API Docs**: `http://127.0.0.1:8000/docs`
 
+### Environment Variables
+
+Create a `.env` file for local development:
+
+```env
+DATABASE_URL=sqlite:///./status.db
+API_KEY=api-key-here
 ```
-IoT-device-status/
-├── app/
-│   ├── main.py          # FastAPI application
-│   ├── models.py        # SQLModel definitions
-│   └── database.py      # Database configuration
-├── tests/
-│   ├── test_api.py      # Integration tests
-│   └── unit_tests.py    # Unit tests
-├── requirements.txt     # Python dependencies
-├── Dockerfile          # Container configuration
-└── README.md          # This file
-```
-
-### Design Decisions
-
-1. SQLModel: combines SQLAlchemy + Pydantic for clean models
-2. SQLite to leverage its in-memory database for testing
-3. Latest Status: uses ```ORDER BY timestamp DESC``` for most recent status update
-4. Simple Structure: flat organization given project scope

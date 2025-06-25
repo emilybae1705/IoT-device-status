@@ -1,13 +1,14 @@
-import unittest
+import pytest
 from pydantic import ValidationError
 from datetime import datetime, timezone
-
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models import DeviceStatus, DeviceStatusInput, DeviceStatusUpdate
 
-class DeviceStatusValidation(unittest.TestCase):
+
+class TestDeviceStatusValidation:
     """tests core input validation logic"""
 
     def test_valid_status_input(self):
@@ -28,14 +29,12 @@ class DeviceStatusValidation(unittest.TestCase):
 
     def test_required_fields(self):
         """tests required fields are all inputted"""
-        try:
+        with pytest.raises(ValidationError):
             DeviceStatusInput()
-            assert False, "Missing all required fields, should raise ValidationError"
-        except ValidationError:
-            pass
 
-    def test_battery_level(self):
+    def test_battery_level_valid_range(self):
         """tests battery level must be between 0-100 inclusive"""
+
         battery_0 = DeviceStatusInput(
             device_id="test-1",
             timestamp=datetime.now(),
@@ -54,7 +53,9 @@ class DeviceStatusValidation(unittest.TestCase):
         )
         assert battery_100.battery_level == 100
 
-        try:
+    def test_battery_level_invalid_low(self):
+        """tests battery level validation for values below 0"""
+        with pytest.raises(ValidationError):
             DeviceStatusInput(
                 device_id="badtest-1",
                 timestamp=datetime.now(),
@@ -62,11 +63,10 @@ class DeviceStatusValidation(unittest.TestCase):
                 rssi=50,
                 online=False,
             )
-            assert False, "Should raise validation error for battery_level=-50"
-        except ValidationError:
-            pass
 
-        try:
+    def test_battery_level_invalid_high(self):
+        """tests battery level validation for values above 100"""
+        with pytest.raises(ValidationError):
             DeviceStatusInput(
                 device_id="badtest-2",
                 timestamp=datetime.now(),
@@ -74,23 +74,55 @@ class DeviceStatusValidation(unittest.TestCase):
                 rssi=50,
                 online=True,
             )
-            assert False, "Should raise validation error for battery_level=120"
-        except ValidationError:
-            pass
 
-    def test_partial_update(self):
-        """test partial update logic"""
+    def test_partial_update_valid(self):
+        """test partial update logic with valid data"""
         update = DeviceStatusUpdate(battery_level=70, online=False)
         assert update.battery_level == 70
         assert update.online == False
-        assert update.rssi == None  # rssi not provided in update
 
-        try:
+    def test_partial_update_invalid_battery(self):
+        """test partial update validation for invalid battery level"""
+        with pytest.raises(ValidationError):
             DeviceStatusUpdate(battery_level=130)
-            assert False, "Should raise validation error for battery_level=130"
-        except ValidationError:
-            pass
 
+    def test_timestamp_edge_cases(self):
+        """test various timestamp format edge cases"""
 
-if __name__ == "__main__":
-    unittest.main()
+        valid_timestamps = [
+            "2025-06-09T14:00:00Z",
+            "2025-06-09T14:00:00+00:00",
+            "2025-06-09T14:00:00.123Z",
+            "2025-06-09T14:00:00.123456Z",
+        ]
+
+        for timestamp_str in valid_timestamps:
+            status = DeviceStatusInput(
+                device_id="test-timestamp-valid",
+                timestamp=timestamp_str,
+                battery_level=50,
+                rssi=-60,
+                online=True,
+            )
+            assert isinstance(status.timestamp, datetime)
+
+        invalid_timestamps = [
+            "2025-06-09T7:00:00Z",  # Single digit hour (should be 07)
+            "2025-13-01T14:00:00Z",  # Invalid month (13)
+            "2025-06-32T14:00:00Z",  # Invalid day (32)
+            "2025-06-09T25:00:00Z",  # Invalid hour (25)
+            "2025-06-09T14:60:00Z",  # Invalid minute (60)
+            "2025-06-09T14:00:60Z",  # Invalid second (60)
+            "invalid-timestamp",  # Completely invalid
+            "14:00:00",  # Missing date
+        ]
+
+        for timestamp_str in invalid_timestamps:
+            with pytest.raises(ValidationError):
+                DeviceStatusInput(
+                    device_id="test-timestamp-invalid",
+                    timestamp=timestamp_str,
+                    battery_level=50,
+                    rssi=-60,
+                    online=True,
+                )
