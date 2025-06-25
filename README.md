@@ -1,6 +1,6 @@
 # IoT Device Status API
 
-A FastAPI-based REST API for managing IoT device status updates.
+A FastAPI-based REST API with SQLite database for managing IoT device status updates.
 
 ## API Endpoints
 
